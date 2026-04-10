@@ -1,14 +1,14 @@
-# OllamaComplete - Autocompletado de Código con IA Local
+# OllamaComplete - Autocompletado Profesional con IA Local
 
-Plugin profesional de autocompletado para Sublime Text 4, similar a GitHub Copilot pero usando modelos locales con Ollama.
+Plugin profesional de autocompletado para Sublime Text 4, optimizado para **todos los modelos Ollama** (pequeños y grandes). Similar a GitHub Copilot pero 100% local y privado.
 
 ## ✨ Características
 
-- 🎯 **Texto fantasma inline** - Sugerencias en gris que no interrumpen tu flujo
+- 🎯 **Texto fantasma inline** - Sugerencias en gris estilo Copilot
 - ⚡ **100% Local** - Sin enviar código a la nube, privacidad total
-- 🧠 **Contexto inteligente** - Lee archivos del proyecto (models.py, urls.py, views.py)
-- 🎨 **Detección de frameworks** - Django, Vue, React, Angular
-- 🚀 **Optimizado por modelo** - Prompts FIM nativos para cada modelo
+- 🧠 **Optimizado por modelo** - Configuración específica para cada modelo
+- 🚀 **Funciona con modelos pequeños** - Optimizado para 0.5B-3B
+- 🎨 **Limpieza agresiva** - Solo código, sin explicaciones
 - ⌨️ **Atajos tipo Copilot** - Ctrl+Space, Tab, Escape
 
 ## 📦 Instalación
@@ -17,23 +17,21 @@ Plugin profesional de autocompletado para Sublime Text 4, similar a GitHub Copil
 
 ```bash
 # Windows: Descarga desde https://ollama.com/download
-# O usa winget:
 winget install Ollama.Ollama
 
 # Inicia el servicio
 ollama serve
 ```
 
-### 2. Instalar modelos recomendados
+### 2. Instalar modelos
 
 ```bash
 # Modelo recomendado (balance perfecto)
-ollama pull qwen2.5-coder:1.5b
+ollama pull codellama:7b-code
 
 # Alternativas:
-ollama pull qwen2.5-coder:0.5b    # Ultra rápido
-ollama pull deepseek-coder:1.3b   # Buena alternativa
-ollama pull codellama:7b-code     # Mejor calidad (requiere GPU)
+ollama pull deepseek-coder-v2:16b    # Mejor calidad
+ollama pull codellama:13b-code       # Buena calidad
 ```
 
 ### 3. Instalar el plugin
@@ -55,23 +53,19 @@ ollama pull codellama:7b-code     # Mejor calidad (requiere GPU)
 | `Ctrl+Space` | Solicitar sugerencia de código |
 | `Tab` | Aceptar sugerencia |
 | `Escape` | Cancelar sugerencia |
-| `Ctrl+Shift+E` | Explicar código seleccionado |
 | `Ctrl+Shift+M` | Cambiar modelo rápidamente |
 
-### Modo automático (como Copilot)
+## ⚙️ Configuración
 
-Edita la configuración (`Preferences > Package Settings > OllamaComplete > Settings`):
+El plugin está optimizado automáticamente para cada modelo. Configuración actual:
 
 ```json
 {
-    "auto_complete": true,
-    "auto_complete_delay": 1500
+    "model": "codellama:7b-code",
+    "max_tokens": 60,
+    "temperature": 0.0
 }
 ```
-
-Ahora las sugerencias aparecerán automáticamente mientras escribes.
-
-## ⚙️ Configuración
 
 ### Cambiar modelo
 
@@ -80,25 +74,48 @@ Ahora las sugerencias aparecerán automáticamente mientras escribes.
 - Selecciona el modelo de la lista
 
 **Opción 2: Configuración manual**
+- `Preferences > Package Settings > OllamaComplete > Settings`
+- Cambiar `"model": "nombre-del-modelo"`
 
-```json
-{
-    "model": "qwen2.5-coder:1.5b",
-    "max_tokens": 120,
-    "temperature": 0.05
-}
+## 🎯 Modelos Recomendados
+
+| Modelo | Tamaño | Velocidad | Calidad | Uso |
+|--------|--------|-----------|---------|-----|
+| codellama:7b-code | 3.8GB | ⚡⚡ 3-5s | ⭐⭐⭐⭐ | Diario |
+| codellama:13b-code | 7.4GB | ⚡ 5-8s | ⭐⭐⭐⭐⭐ | Mejor calidad |
+| deepseek-coder-v2:16b | 8.9GB | ⚡ 5-10s | ⭐⭐⭐⭐⭐ | Máxima calidad |
+
+## 🔧 Optimizaciones Aplicadas
+
+### Para Modelos Pequeños (0.5B-3B)
+- ✅ Prompts simplificados
+- ✅ Contexto reducido
+- ✅ Configuración específica por modelo
+- ✅ Limpieza agresiva de respuestas
+
+### Para Modelos Grandes (7B+)
+- ✅ Prompts FIM nativos
+- ✅ Contexto completo
+- ✅ Timeouts optimizados
+- ✅ Mejor calidad de código
+
+## 🎯 Ejemplos de Uso
+
+### Python
+```python
+def calcular_promedio(numeros):
+    # Presiona Ctrl+Space
+    # Sugerencia: total = sum(numeros) / len(numeros)
 ```
 
-### Modelos recomendados según tu hardware
+### JavaScript
+```javascript
+const handleSubmit = async (e) => {
+    // Presiona Ctrl+Space
+    // Sugerencia: e.preventDefault(); ...
+```
 
-| Hardware | Modelo recomendado | Velocidad |
-|----------|-------------------|-----------|
-| CPU básico | `qwen2.5-coder:0.5b` | ⚡⚡⚡ Ultra rápido |
-| CPU medio | `qwen2.5-coder:1.5b` | ⚡⚡ Rápido |
-| CPU potente | `deepseek-coder:1.3b` | ⚡⚡ Rápido |
-| GPU | `codellama:7b-code` | ⚡ Mejor calidad |
-
-## 🔧 Solución de problemas
+## 🔧 Solución de Problemas
 
 ### "No se pudo conectar a Ollama"
 
@@ -106,71 +123,52 @@ Ahora las sugerencias aparecerán automáticamente mientras escribes.
 # Verifica que Ollama esté corriendo
 ollama serve
 
-# En otra terminal, verifica que funcione
+# En otra terminal
 ollama list
 ```
 
-### "Timeout: Ollama tardó demasiado"
+### "Timeout"
 
-- Usa un modelo más pequeño: `qwen2.5-coder:0.5b`
-- Reduce `max_tokens` en la configuración
+- Usa un modelo más pequeño
+- Pre-carga el modelo: `ollama run codellama:7b-code "test"`
+- Primera carga es lenta, las siguientes son rápidas
 
-### Las sugerencias no son buenas
+### "Genera explicaciones"
 
-- Prueba con `codellama:7b-code` (requiere más recursos)
-- Ajusta `temperature` (más bajo = más conservador)
-- Asegúrate de tener archivos del proyecto abiertos para contexto
+El plugin ya tiene limpieza agresiva. Si aún genera explicaciones:
+- Reduce `max_tokens` a 40-50
+- Cambia `temperature` a 0.0
+- Usa un modelo más grande (mejor calidad)
 
-## 🎯 Ejemplos de uso
+## 📊 Rendimiento Esperado
 
-### Python/Django
-```python
-# Escribe esto:
-def calculate_total_price(items):
-    # Presiona Ctrl+Space
-    # El modelo sugiere el código completo basándose en tus models.py
-```
+**Primera sugerencia (carga en RAM):**
+- codellama:7b-code: 10-15 segundos
+- codellama:13b-code: 15-20 segundos
+- deepseek-coder-v2:16b: 30-60 segundos
 
-### JavaScript/React
-```javascript
-// Escribe esto:
-const handleSubmit = async (e) => {
-    // Presiona Ctrl+Space
-    // Sugerencia inteligente basada en tu código
-```
+**Siguientes sugerencias (ya en RAM):**
+- codellama:7b-code: 3-5 segundos ⚡
+- codellama:13b-code: 5-8 segundos
+- deepseek-coder-v2:16b: 5-10 segundos
 
-### HTML/Django Templates
-```html
-<!-- Escribe esto: -->
-{% for product in products %}
-    <!-- Presiona Ctrl+Space -->
-    <!-- Sugerencia basada en tus models.py y urls.py -->
-```
+## 🚀 Tips para Mejor Rendimiento
 
-## 📊 Comparación de modelos
+1. **Pre-carga el modelo:**
+   ```bash
+   ollama run codellama:7b-code "test"
+   ```
 
-| Modelo | Tamaño | RAM | Velocidad | Calidad | Mejor para |
-|--------|--------|-----|-----------|---------|------------|
-| qwen2.5-coder:0.5b | 400MB | 2GB | ⚡⚡⚡ | ⭐⭐⭐ | Auto-complete rápido |
-| qwen2.5-coder:1.5b | 986MB | 4GB | ⚡⚡ | ⭐⭐⭐⭐ | Balance perfecto |
-| deepseek-coder:1.3b | 776MB | 3GB | ⚡⚡ | ⭐⭐⭐⭐ | Alternativa sólida |
-| codellama:7b-code | 3.8GB | 8GB | ⚡ | ⭐⭐⭐⭐⭐ | Máxima calidad |
+2. **Mantén Ollama corriendo** - No lo cierres
 
-## 🚀 Tips para mejor rendimiento
-
-1. **Mantén archivos del proyecto abiertos** - El plugin lee `models.py`, `urls.py`, `views.py` para contexto
-2. **Usa el modelo adecuado** - Más grande no siempre es mejor
-3. **Ajusta max_tokens** - 80-120 es ideal para completado inline
-4. **Temperatura baja** - 0.05-0.1 para código más predecible
-5. **Auto-complete selectivo** - Desactívalo en archivos grandes
+3. **Usa el modelo adecuado:**
+   - Edición rápida: codellama:7b-code
+   - Código complejo: codellama:13b-code
+   - Máxima calidad: deepseek-coder-v2:16b
 
 ## 📝 Licencia
 
 MIT License - Úsalo libremente en tus proyectos.
-
-## 🤝 Contribuciones
-
-¿Mejoras? ¡Pull requests bienvenidos!
 
 ---
 
