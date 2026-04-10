@@ -1,0 +1,16 @@
+[
+    // Solicitar sugerencia de código (Ctrl+Space como Copilot)
+    { "keys": ["ctrl+space"], "command": "ollama_complete" },
+
+    // Aceptar sugerencia con Tab
+    { "keys": ["tab"], "command": "ollama_accept" },
+
+    // Cancelar sugerencia con Escape
+    { "keys": ["escape"], "command": "ollama_cancel" },
+
+    // Explicar código seleccionado
+    { "keys": ["ctrl+shift+e"], "command": "ollama_explain" },
+
+    // Cambiar modelo rápidamente
+    { "keys": ["ctrl+shift+m"], "command": "ollama_select_model" }
+]

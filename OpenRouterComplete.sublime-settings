@@ -1,0 +1,37 @@
+{
+    // =========================================================
+    // OllamaComplete - Configuración para modelos locales
+    // =========================================================
+
+    // Modelo de Ollama a usar (debe estar instalado localmente)
+    //
+    // TUS MODELOS FINALES:
+    //   "codellama:7b-code"     -> Principal: 3.8GB, 3-5s, rápido
+    //   "codellama:13b-code"    -> Mejor: 7.4GB, 5-8s, más calidad
+    //   "deepseek-coder-v2:16b" -> Máximo: 8.9GB, 5-10s, máxima calidad
+    //
+    // Cambia rápidamente con: Ctrl+Shift+M
+    //
+    "model": "codellama:7b-code",
+
+    // Máximo de tokens generados
+    // Configuración por modelo:
+    //   - codellama:7b-code → 60 (evitar explicaciones)
+    //   - codellama:13b-code → 80
+    //   - deepseek-coder-v2:16b → 100
+    "max_tokens": 60,
+
+    // Temperatura: 0.0 = exacto, 1.0 = creativo
+    // Para CodeLlama: 0.0 para evitar explicaciones
+    "temperature": 0.0,
+
+    // Autocompletado automático mientras escribes (como Copilot)
+    // true = sugerencias automáticas después de pausar
+    // false = solo con Ctrl+Space (más control)
+    "auto_complete": false,
+
+    // Delay en milisegundos antes de mostrar sugerencia automática
+    // Solo aplica si auto_complete = true
+    // Recomendado: 1000-2000ms
+    "auto_complete_delay": 1500
+}
