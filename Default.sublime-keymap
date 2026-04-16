@@ -1,16 +1,25 @@
 [
-    // Solicitar sugerencia de código (Ctrl+Space como Copilot)
-    { "keys": ["ctrl+space"], "command": "ollama_complete" },
+    // ── Request completion (like Copilot) ──
+    {
+        "keys": ["ctrl+space"],
+        "command": "ollama_complete",
+        "context": [
+            { "key": "auto_complete_visible", "operator": "equal", "operand": false }
+        ]
+    },
 
-    // Aceptar sugerencia con Tab
+    // ── Accept full suggestion ──
     { "keys": ["tab"], "command": "ollama_accept" },
 
-    // Cancelar sugerencia con Escape
+    // ── Accept word-by-word (Copilot-style) ──
+    { "keys": ["ctrl+right"], "command": "ollama_accept_word" },
+
+    // ── Accept line-by-line ──
+    { "keys": ["ctrl+down"], "command": "ollama_accept_line" },
+
+    // ── Dismiss suggestion ──
     { "keys": ["escape"], "command": "ollama_cancel" },
 
-    // Explicar código seleccionado
-    { "keys": ["ctrl+shift+e"], "command": "ollama_explain" },
-
-    // Cambiar modelo rápidamente
+    // ── Quick model switcher ──
     { "keys": ["ctrl+shift+m"], "command": "ollama_select_model" }
 ]

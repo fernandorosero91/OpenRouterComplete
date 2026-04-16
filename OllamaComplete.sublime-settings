@@ -1,0 +1,26 @@
+{
+    // ═══════════════════════════════════════════════════════════
+    // OllamaComplete — Copilot-class AI Autocomplete (Local)
+    // ═══════════════════════════════════════════════════════════
+
+    // Active model (switch quickly with Ctrl+Shift+M)
+    //
+    // Recommended for CPU-only (i5 + 32GB RAM):
+    //
+    //   "qwen2.5-coder:1.5b"    →  Ultra fast, ~1-2s  ⚡⚡⚡⚡⚡
+    //   "qwen2.5-coder:3b"      →  Fast + good quality, ~2-3s  ⚡⚡⚡⚡
+    //   "deepseek-coder:1.3b"   →  Fast, ~1-2s  ⚡⚡⚡⚡
+    //   "starcoder2:3b"         →  Fast + solid, ~2-3s  ⚡⚡⚡⚡
+    //   "codellama:7b-code"     →  Best quality, ~3-5s  ⚡⚡⚡
+    //   "qwen2.5-coder:7b"      →  Great quality, ~4-6s  ⚡⚡
+    //
+    "model": "qwen2.5-coder:1.5b",
+
+    // Auto-complete: trigger automatically after typing pause
+    // Set to true for full Copilot experience
+    "auto_complete": false,
+
+    // Delay (ms) before auto-triggering after last keystroke
+    // Lower = more responsive, higher = less CPU usage
+    "auto_complete_delay_ms": 800
+}
