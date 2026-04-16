@@ -7,23 +7,25 @@ import sublime
 # ─── Model Profiles ───────────────────────────────────────────
 
 _PROFILES = {
-    # ── Gemma (NOT a FIM model — uses plain completion) ──
+    # ── Gemma (NOT a FIM model — blocked for autocomplete) ──
+    # Gemma generates repetitive garbage for code completion.
+    # Use fim_format "blocked" to reject it gracefully.
     "gemma4:e2b": {
-        "max_tokens": 200,
+        "max_tokens": 1,
         "temperature": 0.0,
         "top_p": 0.95,
         "repeat_penalty": 1.1,
-        "timeout": 120,
-        "num_ctx": 1024,
+        "timeout": 5,
+        "num_ctx": 256,
         "num_thread": 6,
         "num_batch": 256,
-        "fim_format": "completion",
-        "max_prefix_chars": 1500,
-        "max_suffix_chars": 300,
-        "max_prefix_lines": 25,
-        "max_suffix_lines": 5,
-        "max_output_lines": 30,
-        "max_output_chars": 1200,
+        "fim_format": "blocked",
+        "max_prefix_chars": 100,
+        "max_suffix_chars": 0,
+        "max_prefix_lines": 2,
+        "max_suffix_lines": 0,
+        "max_output_lines": 1,
+        "max_output_chars": 10,
     },
 
     # ── Qwen2.5-Coder family ──
@@ -257,6 +259,13 @@ def for_model(model):
 
     # Fuzzy match by base name
     model_low = model.lower()
+
+    # Block known non-FIM models
+    _BLOCKED_FAMILIES = ("gemma", "llama3", "mistral", "phi", "vicuna", "orca")
+    for blocked in _BLOCKED_FAMILIES:
+        if blocked in model_low:
+            return _PROFILES["gemma4:e2b"]  # returns the "blocked" config
+
     for key, cfg in _PROFILES.items():
         base = key.split(":")[0]
         if base in model_low:

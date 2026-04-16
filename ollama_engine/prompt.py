@@ -23,8 +23,11 @@ def build(prefix, suffix, fim_format, mcfg):
         "qwen": _qwen,
         "starcoder": _starcoder,
         "completion": _completion,
+        "blocked": None,
     }
     fn = builders.get(fim_format, _completion)
+    if fn is None:
+        return ""  # blocked model
     return fn(prefix, suffix, has_suffix)
 
 

@@ -58,6 +58,19 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
         mcfg = config.for_model(model)
 
         prefix, suffix = _get_context(view, cursor, mcfg)
+
+        # Block models that don't support FIM
+        if mcfg["fim_format"] == "blocked":
+            sublime.error_message(
+                "Model '{}' doesn't support code completion (no FIM).\n\n"
+                "Switch to a FIM model with Ctrl+Shift+M:\n"
+                "  • qwen2.5-coder:1.5b (fast)\n"
+                "  • qwen2.5-coder:3b (recommended)\n"
+                "  • starcoder2:3b\n"
+                "  • codellama:7b-code".format(model)
+            )
+            return
+
         req_id = state.new_request(view.id(), cursor)
 
         ui.show_status(view, "⟳ Generating…")
