@@ -118,6 +118,7 @@ def generate(prompt_text, model, mcfg):
         "model": model,
         "prompt": prompt_text,
         "stream": False,
+        "raw": True,  # bypass Ollama's chat template for FIM
         "options": _build_options(mcfg, stop),
     }
 
@@ -140,6 +141,7 @@ def generate_stream(prompt_text, model, mcfg, on_chunk, on_done, is_cancelled):
         "model": model,
         "prompt": prompt_text,
         "stream": True,
+        "raw": True,  # CRITICAL: bypass Ollama's chat template for FIM
         "options": _build_options(mcfg, stop),
     }
 
