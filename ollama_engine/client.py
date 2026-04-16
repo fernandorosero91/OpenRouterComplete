@@ -23,7 +23,6 @@ def _post(path, payload, timeout=30):
         data=body,
         headers={"Content-Type": "application/json"},
     )
-    # Compatible with both Python 3.3 and 3.8 in Sublime Text
     req.get_method = lambda: "POST"
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
@@ -64,10 +63,10 @@ def warm(model):
     try:
         _post("/api/generate", {
             "model": model,
-            "prompt": "def f():",
+            "prompt": "def f():\n    return",
             "stream": False,
             "options": {
-                "num_predict": 1,
+                "num_predict": 5,
                 "temperature": 0.0,
                 "num_ctx": 256,
             }
@@ -100,31 +99,40 @@ def generate(prompt_text, model, mcfg):
     }
 
     result = _post("/api/generate", payload, timeout=mcfg["timeout"])
-    return result.get("response", "")
+    raw = result.get("response", "")
+    print("[OllamaComplete] API response ({} chars): {}".format(
+        len(raw), repr(raw[:300])
+    ))
+    return raw
 
 
 # ─── Stop tokens per FIM format ──────────────────────────────
 
 def _stop_tokens(fim_format):
+    """Stop tokens — only real end-of-generation markers.
+    No \\n\\n or \\n\\n\\n — let the cleaner handle trimming.
+    """
     _MAP = {
         "codellama": [
             "<EOT>", "</s>", "<|endoftext|>",
-            "\n\n\n", "\n\n",
+            "<PRE>", "<SUF>", "<MID>",
         ],
         "deepseek": [
             "<|fim_suffix|>", "<|fim_prefix|>", "<|fim_middle|>",
             "<|endoftext|>", "<EOT>", "</s>",
-            "\n\n\n", "\n\n",
         ],
         "qwen": [
             "<|fim_suffix|>", "<|fim_prefix|>", "<|fim_middle|>",
             "<|im_end|>", "<|endoftext|>",
-            "\n\n\n", "\n\n",
+            "<|repo_name|>", "<|file_sep|>",
         ],
         "starcoder": [
             "<fim_suffix>", "<fim_prefix>", "<fim_middle>",
             "<|endoftext|>",
-            "\n\n\n", "\n\n",
+        ],
+        "completion": [
+            "<|endoftext|>", "<|im_end|>", "</s>", "<eos>",
+            "<end_of_turn>",
         ],
     }
-    return _MAP.get(fim_format, _MAP["codellama"])
+    return _MAP.get(fim_format, _MAP["completion"])
