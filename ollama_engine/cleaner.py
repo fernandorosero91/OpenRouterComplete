@@ -104,10 +104,13 @@ def clean(raw, prefix, mcfg):
     # 7. Remove echoed prefix
     text = _remove_prefix_echo(text, prefix)
 
+    # 8. Remove trailing explanation lines
+    text = _strip_trailing_explanation(text)
+
     if not text.strip():
         return ""
 
-    # 8. Enforce limits
+    # 9. Enforce limits
     lines = text.split("\n")
     if len(lines) > max_lines:
         lines = lines[:max_lines]
@@ -204,3 +207,48 @@ def _remove_prefix_echo(text, prefix):
                 text = text[1:]
 
     return text
+
+
+def _strip_trailing_explanation(text):
+    """Remove trailing lines that are natural language, not code.
+    Detects prose at the end of otherwise valid code output.
+    """
+    if not text:
+        return text
+
+    lines = text.split("\n")
+    # Walk backwards and remove non-code lines
+    while lines:
+        last = lines[-1].strip()
+        if not last:
+            lines.pop()
+            continue
+
+        low = last.lower()
+
+        # Check if line starts with explanation words
+        if any(low.startswith(s) for s in _EXPLANATION_STARTERS):
+            lines.pop()
+            continue
+
+        # Heuristic: a line with no code characters is likely prose
+        # Code has: = ( ) [ ] { } : ; , . < > + - * / & | ^ ~ @ ! %
+        code_chars = sum(1 for c in last if c in "=()[]{}:;,.<>+-*/&|^~@!%")
+        words = last.split()
+
+        # Long line with many words but few code chars → prose
+        if len(words) > 6 and code_chars < 2 and not last.startswith(("#", "//", "/*")):
+            lines.pop()
+            continue
+
+        # Starts with capital letter + looks like a sentence
+        if (last[0].isupper() and len(words) > 4 and code_chars < 2
+                and not last.startswith(("class ", "def ", "if ", "for ", "while ",
+                                         "return ", "import ", "from ", "try:",
+                                         "except", "elif ", "else:"))):
+            lines.pop()
+            continue
+
+        break
+
+    return "\n".join(lines)

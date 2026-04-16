@@ -384,13 +384,130 @@ class OllamaEventListener(sublime_plugin.EventListener):
 # ──────────────────────────────────────────────
 
 def _get_context(view, cursor, mcfg):
+    import os
     max_pre = mcfg.get("max_prefix_chars", 1500)
     max_suf = mcfg.get("max_suffix_chars", 300)
     start = max(0, cursor - max_pre)
     end = min(view.size(), cursor + max_suf)
     prefix = view.substr(sublime.Region(start, cursor))
     suffix = view.substr(sublime.Region(cursor, end))
+
+    # ── Build context from neighboring open tabs ──
+    # This is what makes it Copilot-like: the model sees related files
+    filename = view.file_name()
+    fname = os.path.basename(filename) if filename else ""
+    comment_fn = _comment_style(view, fname)
+
+    header_parts = []
+
+    # Gather snippets from other open tabs in the same directory
+    neighbors = _get_neighbor_context(view, 600)
+    if neighbors:
+        header_parts.append(comment_fn("Related project files:"))
+        for nf, snippet in neighbors:
+            header_parts.append(comment_fn("--- {} ---".format(nf)))
+            for line in snippet.split("\n")[:10]:
+                if line.strip():
+                    header_parts.append(comment_fn(line.rstrip()))
+        header_parts.append("")
+
+    # Add current filename
+    if fname:
+        header_parts.append(comment_fn(fname))
+
+    if header_parts:
+        header = "\n".join(header_parts) + "\n"
+        # Only add if within budget (don't blow up the context)
+        if len(header) + len(prefix) <= max_pre + 800:
+            prefix = header + prefix
+
     return prefix, suffix
+
+
+def _get_neighbor_context(view, budget):
+    """Get snippets from other open tabs in the same directory.
+    Prioritizes models.py, urls.py, forms.py — the files that define
+    the data structures the current file likely references.
+    """
+    import os
+    window = view.window()
+    if not window:
+        return []
+
+    current_file = view.file_name()
+    if not current_file:
+        return []
+
+    current_dir = os.path.dirname(current_file)
+    current_name = os.path.basename(current_file)
+
+    # Priority files — these define the project's data structures
+    priority = ("models.py", "forms.py", "serializers.py", "urls.py", "schema.py")
+
+    neighbors = []
+    for v in window.views():
+        if v.id() == view.id():
+            continue
+        f = v.file_name()
+        if not f:
+            continue
+
+        vname = os.path.basename(f)
+        vdir = os.path.dirname(f)
+
+        # Only same directory (same app/module)
+        if vdir != current_dir:
+            continue
+
+        # Only code files
+        if not vname.endswith((".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".css")):
+            continue
+
+        # Skip __init__, migrations, tests
+        if vname.startswith("__") or "migration" in vname.lower():
+            continue
+
+        # Get the beginning of the file (imports + definitions)
+        size = min(v.size(), 500)
+        snippet = v.substr(sublime.Region(0, size)).strip()
+        if not snippet:
+            continue
+
+        is_priority = vname.lower() in priority
+        neighbors.append((vname, snippet, is_priority))
+
+    # Sort: priority files first, then alphabetical
+    neighbors.sort(key=lambda x: (not x[2], x[0]))
+
+    # Trim to budget
+    result = []
+    total = 0
+    for nf, snippet, _ in neighbors:
+        cost = len(snippet) + len(nf) + 30
+        if total + cost > budget:
+            # Try a shorter snippet
+            short = snippet[:max(0, budget - total - 30)]
+            if short:
+                result.append((nf, short))
+            break
+        result.append((nf, snippet))
+        total += cost
+
+    return result
+
+
+def _comment_style(view, fname):
+    """Return a function that wraps text in the file's comment style."""
+    syntax = view.settings().get("syntax", "").lower()
+    if "python" in syntax or fname.endswith(".py"):
+        return lambda t: "# " + t
+    if any(x in syntax for x in ("javascript", "typescript")) or fname.endswith((".js", ".ts", ".jsx", ".tsx")):
+        return lambda t: "// " + t
+    if fname.endswith((".html", ".htm")):
+        return lambda t: "<!-- {} -->".format(t)
+    if fname.endswith((".css", ".scss")):
+        return lambda t: "/* {} */".format(t)
+    return lambda t: "# " + t
 
 
 def _friendly_error(raw, model):
