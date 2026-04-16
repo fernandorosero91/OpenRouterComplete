@@ -123,11 +123,7 @@ def generate(prompt_text, model, mcfg):
     }
 
     result = _post("/api/generate", payload, timeout=mcfg["timeout"])
-    raw = result.get("response", "")
-    print("[OllamaComplete] API response ({} chars): {}".format(
-        len(raw), repr(raw[:300])
-    ))
-    return raw
+    return result.get("response", "")
 
 
 def generate_stream(prompt_text, model, mcfg, on_chunk, on_done, is_cancelled):

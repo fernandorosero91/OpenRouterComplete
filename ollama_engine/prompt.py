@@ -25,11 +25,7 @@ def build(prefix, suffix, fim_format, mcfg):
         "completion": _completion,
     }
     fn = builders.get(fim_format, _completion)
-    result = fn(prefix, suffix, has_suffix)
-    print("[OllamaComplete] Prompt fmt={} suffix={} len={}".format(
-        fim_format, has_suffix, len(result)
-    ))
-    return result
+    return fn(prefix, suffix, has_suffix)
 
 
 def _trim_prefix(text, max_chars, max_lines):

@@ -1,19 +1,6 @@
 """
 OllamaComplete — Copilot-class AI autocomplete for Sublime Text 4
 Powered by local Ollama models. Zero cloud, zero latency tax.
-
-Architecture:
-    OllamaComplete.py          → Plugin entry, commands, event listener
-    ollama_engine/
-        __init__.py            → Public API
-        client.py              → HTTP client + connection pool
-        cache.py               → Thread-safe LRU cache
-        config.py              → Model configs + settings bridge
-        prompt.py              → FIM prompt builders
-        cleaner.py             → Response sanitizer
-        ui.py                  → Phantom + status bar rendering
-        state.py               → Thread-safe global state
-        debouncer.py           → Auto-trigger debounce logic
 """
 
 import sublime
@@ -27,19 +14,18 @@ from .ollama_engine import (
 
 
 def plugin_loaded():
-    """Warm up model on Sublime start — non-blocking."""
+    """Warm up model on Sublime start."""
     def _init():
         if client.is_running():
             model = config.get_active_model()
             client.warm(model)
-            print("[OllamaComplete] Warmed up: " + model)
+            print("[OllamaComplete] Ready — model: " + model)
         else:
             print("[OllamaComplete] Ollama not running — start with: ollama serve")
     sublime.set_timeout_async(_init, 1500)
 
 
 def plugin_unloaded():
-    """Cleanup on plugin unload."""
     cache.clear()
     state.reset()
     debouncer.cancel_all()
@@ -54,7 +40,6 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
 
     def run(self, edit):
         view = self.view
-        print("[OllamaComplete] Command triggered")
 
         if not client.is_running():
             sublime.error_message(
@@ -64,7 +49,6 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
 
         sel = view.sel()
         if not sel:
-            print("[OllamaComplete] No selection")
             return
 
         cursor = sel[0].begin()
@@ -72,7 +56,6 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
 
         model = config.get_active_model()
         mcfg = config.for_model(model)
-        print("[OllamaComplete] Model: {} | Cursor: {}".format(model, cursor))
 
         prefix, suffix = _get_context(view, cursor, mcfg)
         req_id = state.new_request(view.id(), cursor)
@@ -106,12 +89,11 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
                 return
 
             # Stream tokens — update phantom in real-time
-            last_update = [0.0]  # mutable for closure
+            last_update = [0.0]
 
             def on_chunk(text_so_far):
                 now = time.perf_counter()
-                # Throttle UI updates to every 200ms
-                if now - last_update[0] < 0.2:
+                if now - last_update[0] < 0.25:
                     return
                 last_update[0] = now
                 cleaned = cleaner.clean(text_so_far, prefix, mcfg)
@@ -120,11 +102,11 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
                     sublime.set_timeout(lambda c=cleaned, e=elapsed: (
                         ui.show_phantom(view, cursor, c),
                         state.set_suggestion(view.id(), cursor, c),
-                        ui.show_status(view, "⟳ Streaming… ({:.1f}s)".format(e)),
+                        ui.show_status(view, "⟳ {:.1f}s…".format(e)),
                     ), 0)
 
             def on_done(full_text):
-                pass  # handled below
+                pass
 
             def is_cancelled():
                 return not state.is_current(req_id)
@@ -136,7 +118,6 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
             if not state.is_current(req_id):
                 return
 
-            # Cache the raw result
             if raw:
                 cache.put(p, model, raw)
 
@@ -144,23 +125,20 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
             elapsed = time.perf_counter() - t0
 
             if not text:
-                print("[OllamaComplete] Cleaner returned empty")
                 sublime.set_timeout(lambda: self._empty(view), 0)
                 return
 
-            print("[OllamaComplete] Success: {:.1f}s | {} chars".format(elapsed, len(text)))
-
-            # Final update with clean result
+            print("[OllamaComplete] {:.1f}s | {} chars | {}".format(
+                elapsed, len(text), model
+            ))
             sublime.set_timeout(
                 lambda: self._show(view, cursor, text, elapsed), 0
             )
 
         except Exception as e:
-            print("[OllamaComplete] Error: {}".format(e))
-            import traceback
-            traceback.print_exc()
             if not state.is_current(req_id):
                 return
+            print("[OllamaComplete] Error: {}".format(e))
             msg = _friendly_error(str(e), model)
             sublime.set_timeout(lambda: self._fail(view, msg), 0)
 
@@ -194,7 +172,6 @@ class OllamaAcceptCommand(sublime_plugin.TextCommand):
         s = state.get_suggestion(view.id())
 
         if not s:
-            # No active suggestion — fall through to normal Tab
             view.run_command("insert_best_completion", {
                 "default": "\t", "exact": False
             })
@@ -248,7 +225,6 @@ class OllamaAcceptWordCommand(sublime_plugin.TextCommand):
             return
 
         text = s["text"]
-        # Find next word boundary
         i = 0
         while i < len(text) and text[i] in " \t":
             i += 1
@@ -332,7 +308,7 @@ class OllamaSelectModelCommand(sublime_plugin.WindowCommand):
         models = client.list_models()
         if not models:
             sublime.error_message(
-                "No models installed.\n\nInstall one:\n  ollama pull codellama:7b-code"
+                "No models installed.\n\nInstall one:\n  ollama pull qwen2.5-coder:1.5b"
             )
             return
 
@@ -353,7 +329,6 @@ class OllamaSelectModelCommand(sublime_plugin.WindowCommand):
         settings.set("model", selected)
         sublime.save_settings("OllamaComplete.sublime-settings")
         sublime.status_message("Model → " + selected)
-        # Warm the new model
         threading.Thread(target=client.warm, args=(selected,), daemon=True).start()
 
 
@@ -382,7 +357,6 @@ class OllamaEventListener(sublime_plugin.EventListener):
             state.clear_suggestion(view.id())
             state.invalidate_request()
 
-        # Auto-trigger: debounce typing
         settings = sublime.load_settings("OllamaComplete.sublime-settings")
         if settings.get("auto_complete", False):
             debouncer.trigger(view, self._auto_complete)
@@ -393,15 +367,12 @@ class OllamaEventListener(sublime_plugin.EventListener):
         state.clear_suggestion(vid)
 
     def _auto_complete(self, view):
-        """Triggered after typing pause — auto-request completion."""
         if not client.is_running():
             return
         sel = view.sel()
         if not sel:
             return
-        cursor = sel[0].begin()
-        # Only trigger if cursor is at end of a line with code
-        line = view.line(cursor)
+        line = view.line(sel[0].begin())
         line_text = view.substr(line).strip()
         if not line_text or line_text.startswith("#") or line_text.startswith("//"):
             return
@@ -413,7 +384,6 @@ class OllamaEventListener(sublime_plugin.EventListener):
 # ──────────────────────────────────────────────
 
 def _get_context(view, cursor, mcfg):
-    """Extract prefix/suffix around cursor."""
     max_pre = mcfg.get("max_prefix_chars", 1500)
     max_suf = mcfg.get("max_suffix_chars", 300)
     start = max(0, cursor - max_pre)

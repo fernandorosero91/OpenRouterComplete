@@ -83,16 +83,12 @@ def clean(raw, prefix, mcfg):
         return ""
 
     # 4. CRITICAL: Detect if the entire output is explanation, not code
-    #    If the first non-whitespace content starts with explanation words,
-    #    the model is chatting instead of completing code.
     first_content = text.lstrip().lower()
     if any(first_content.startswith(s) for s in _EXPLANATION_STARTERS):
-        # Check if there's code inside markdown fences
         code = _extract_code_from_markdown(raw)
         if code:
             text = code
         else:
-            print("[OllamaComplete] Cleaner: rejected explanation output")
             return ""
 
     # 5. Cut at explanation blocks mid-text
