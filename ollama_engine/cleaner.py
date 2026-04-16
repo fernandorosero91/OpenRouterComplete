@@ -102,7 +102,10 @@ def clean(raw, prefix, mcfg):
 
     text = text.rstrip()
 
-    # 8. Minimum viable completion
+    # 8. Adapt indentation to match the file's style
+    text = _adapt_indentation(text, prefix)
+
+    # 9. Minimum viable completion
     if len(text.strip()) < 2:
         print("[OllamaComplete] Cleaner: too short after limits")
         return ""
@@ -110,6 +113,51 @@ def clean(raw, prefix, mcfg):
     print("[OllamaComplete] Cleaner result ({} chars): {}".format(
         len(text), repr(text[:150])
     ))
+    return text
+
+
+def _adapt_indentation(text, prefix):
+    """Match the indentation style of the file (tabs vs spaces)."""
+    if not prefix or not text:
+        return text
+
+    # Detect file's indent style from prefix
+    uses_tabs = False
+    uses_spaces = False
+    space_size = 4
+
+    for line in prefix.split("\n"):
+        if line.startswith("\t"):
+            uses_tabs = True
+        elif line.startswith("    "):
+            uses_spaces = True
+            # Detect space width
+            stripped = line.lstrip(" ")
+            indent = len(line) - len(stripped)
+            if indent > 0 and indent < space_size:
+                space_size = indent
+
+    if not space_size:
+        space_size = 4
+
+    if uses_spaces and not uses_tabs:
+        # File uses spaces — convert tabs in output to spaces
+        text = text.replace("\t", " " * space_size)
+    elif uses_tabs and not uses_spaces:
+        # File uses tabs — convert leading spaces to tabs
+        lines = text.split("\n")
+        result = []
+        for line in lines:
+            stripped = line.lstrip(" ")
+            n_spaces = len(line) - len(stripped)
+            if n_spaces >= space_size:
+                n_tabs = n_spaces // space_size
+                remainder = n_spaces % space_size
+                result.append("\t" * n_tabs + " " * remainder + stripped)
+            else:
+                result.append(line)
+        text = "\n".join(result)
+
     return text
 
 

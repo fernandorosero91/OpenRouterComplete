@@ -95,14 +95,50 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
             # Try cache first
             cached = cache.get(p, model)
             if cached is not None:
-                raw = cached
-            else:
-                raw = client.generate(p, model, mcfg)
-                if raw:
-                    cache.put(p, model, raw)
+                text = cleaner.clean(cached, prefix, mcfg)
+                elapsed = time.perf_counter() - t0
+                if text:
+                    sublime.set_timeout(
+                        lambda: self._show(view, cursor, text, elapsed), 0
+                    )
+                else:
+                    sublime.set_timeout(lambda: self._empty(view), 0)
+                return
+
+            # Stream tokens — update phantom in real-time
+            last_update = [0.0]  # mutable for closure
+
+            def on_chunk(text_so_far):
+                now = time.perf_counter()
+                # Throttle UI updates to every 200ms
+                if now - last_update[0] < 0.2:
+                    return
+                last_update[0] = now
+                cleaned = cleaner.clean(text_so_far, prefix, mcfg)
+                if cleaned:
+                    elapsed = now - t0
+                    sublime.set_timeout(lambda c=cleaned, e=elapsed: (
+                        ui.show_phantom(view, cursor, c),
+                        state.set_suggestion(view.id(), cursor, c),
+                        ui.show_status(view, "⟳ Streaming… ({:.1f}s)".format(e)),
+                    ), 0)
+
+            def on_done(full_text):
+                pass  # handled below
+
+            def is_cancelled():
+                return not state.is_current(req_id)
+
+            raw = client.generate_stream(
+                p, model, mcfg, on_chunk, on_done, is_cancelled
+            )
 
             if not state.is_current(req_id):
                 return
+
+            # Cache the raw result
+            if raw:
+                cache.put(p, model, raw)
 
             text = cleaner.clean(raw, prefix, mcfg)
             elapsed = time.perf_counter() - t0
@@ -114,6 +150,7 @@ class OllamaCompleteCommand(sublime_plugin.TextCommand):
 
             print("[OllamaComplete] Success: {:.1f}s | {} chars".format(elapsed, len(text)))
 
+            # Final update with clean result
             sublime.set_timeout(
                 lambda: self._show(view, cursor, text, elapsed), 0
             )

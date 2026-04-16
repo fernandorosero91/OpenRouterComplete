@@ -1,7 +1,7 @@
 """
 HTTP client for Ollama API.
-Uses urllib (reliable in Sublime Text's Python) with proper error handling.
-No bare excepts. Thread-safe warm tracking.
+Supports both streaming and non-streaming generation.
+Uses urllib (reliable in Sublime Text's Python).
 """
 import urllib.request
 import urllib.error
@@ -26,6 +26,39 @@ def _post(path, payload, timeout=30):
     req.get_method = lambda: "POST"
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def _post_stream(path, payload, timeout=30):
+    """POST JSON to Ollama with streaming. Yields response chunks."""
+    url = _OLLAMA_BASE + path
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    req.get_method = lambda: "POST"
+    resp = urllib.request.urlopen(req, timeout=timeout)
+    try:
+        buf = b""
+        while True:
+            chunk = resp.read(1)
+            if not chunk:
+                break
+            buf += chunk
+            if chunk == b"\n":
+                line = buf.strip()
+                buf = b""
+                if line:
+                    try:
+                        data = json.loads(line.decode("utf-8"))
+                        yield data
+                        if data.get("done", False):
+                            break
+                    except (ValueError, UnicodeDecodeError):
+                        continue
+    finally:
+        resp.close()
 
 
 def _get(path, timeout=5):
@@ -78,24 +111,14 @@ def warm(model):
 
 
 def generate(prompt_text, model, mcfg):
-    """Generate a completion. Returns raw response text."""
+    """Generate a completion (non-streaming). Returns raw response text."""
     stop = _stop_tokens(mcfg["fim_format"])
 
     payload = {
         "model": model,
         "prompt": prompt_text,
         "stream": False,
-        "options": {
-            "num_predict": mcfg["max_tokens"],
-            "temperature": mcfg["temperature"],
-            "top_p": mcfg["top_p"],
-            "repeat_penalty": mcfg["repeat_penalty"],
-            "stop": stop,
-            "num_ctx": mcfg["num_ctx"],
-            "num_thread": mcfg["num_thread"],
-            "num_batch": mcfg["num_batch"],
-            "num_gpu": 0,
-        }
+        "options": _build_options(mcfg, stop),
     }
 
     result = _post("/api/generate", payload, timeout=mcfg["timeout"])
@@ -106,12 +129,57 @@ def generate(prompt_text, model, mcfg):
     return raw
 
 
+def generate_stream(prompt_text, model, mcfg, on_chunk, on_done, is_cancelled):
+    """Generate with streaming. Calls on_chunk(text_so_far) as tokens arrive.
+    Calls on_done(full_text) when complete.
+    is_cancelled() should return True to abort.
+    """
+    stop = _stop_tokens(mcfg["fim_format"])
+
+    payload = {
+        "model": model,
+        "prompt": prompt_text,
+        "stream": True,
+        "options": _build_options(mcfg, stop),
+    }
+
+    full_text = ""
+    try:
+        for data in _post_stream("/api/generate", payload, timeout=mcfg["timeout"]):
+            if is_cancelled():
+                break
+            token = data.get("response", "")
+            if token:
+                full_text += token
+                on_chunk(full_text)
+            if data.get("done", False):
+                break
+    except Exception as e:
+        if not is_cancelled():
+            raise e
+
+    on_done(full_text)
+    return full_text
+
+
+def _build_options(mcfg, stop):
+    return {
+        "num_predict": mcfg["max_tokens"],
+        "temperature": mcfg["temperature"],
+        "top_p": mcfg["top_p"],
+        "repeat_penalty": mcfg["repeat_penalty"],
+        "stop": stop,
+        "num_ctx": mcfg["num_ctx"],
+        "num_thread": mcfg["num_thread"],
+        "num_batch": mcfg["num_batch"],
+        "num_gpu": 0,
+    }
+
+
 # ─── Stop tokens per FIM format ──────────────────────────────
 
 def _stop_tokens(fim_format):
-    """Stop tokens — only real end-of-generation markers.
-    No \\n\\n or \\n\\n\\n — let the cleaner handle trimming.
-    """
+    """Stop tokens — only real end-of-generation markers."""
     _MAP = {
         "codellama": [
             "<EOT>", "</s>", "<|endoftext|>",
